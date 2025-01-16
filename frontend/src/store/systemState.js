@@ -5,6 +5,7 @@ import JobApi from 'src/api/JobApi';
 export const systemState = reactive({
   systemInfo: null,
   jobStatus: null,
+  preJobStatus: null,
 });
 
 export const getInfo = async () => {
@@ -13,6 +14,7 @@ export const getInfo = async () => {
 };
 
 export const isJobRunning = computed(() => systemState.jobStatus?.status === 'running');
+export const isRunningInDocker = computed(() => systemState.systemInfo?.is_running_in_docker);
 
 export const getJobsStatus = async () => {
   const [res] = await JobApi.getStatus();

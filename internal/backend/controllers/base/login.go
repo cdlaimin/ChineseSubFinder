@@ -1,15 +1,18 @@
 package base
 
 import (
-	"github.com/allanpk716/ChineseSubFinder/internal/pkg/common"
-	"github.com/allanpk716/ChineseSubFinder/internal/pkg/my_util"
-	"github.com/allanpk716/ChineseSubFinder/internal/pkg/settings"
-	"github.com/allanpk716/ChineseSubFinder/internal/types/backend"
-	"github.com/gin-gonic/gin"
 	"net/http"
+
+	"github.com/ChineseSubFinder/ChineseSubFinder/pkg"
+
+	backend2 "github.com/ChineseSubFinder/ChineseSubFinder/pkg/types/backend"
+
+	"github.com/ChineseSubFinder/ChineseSubFinder/pkg/common"
+	"github.com/ChineseSubFinder/ChineseSubFinder/pkg/settings"
+	"github.com/gin-gonic/gin"
 )
 
-func (cb ControllerBase) LoginHandler(c *gin.Context) {
+func (cb *ControllerBase) LoginHandler(c *gin.Context) {
 
 	var err error
 	defer func() {
@@ -22,23 +25,23 @@ func (cb ControllerBase) LoginHandler(c *gin.Context) {
 		return
 	}
 
-	if settings.GetSettings().UserInfo.Username == "" || settings.GetSettings().UserInfo.Password == "" {
+	if settings.Get().UserInfo.Username == "" || settings.Get().UserInfo.Password == "" {
 		// 配置文件中的账号和密码任意一个未空，提示用户需要进行 setup 流程
-		c.JSON(http.StatusNoContent, backend.ReplyCommon{Message: "You need do `Setup`"})
+		c.JSON(http.StatusNoContent, backend2.ReplyCommon{Message: "You need do `Setup`"})
 		return
 	}
 
-	if settings.GetSettings().UserInfo.Username != nowUserInfo.Username ||
-		settings.GetSettings().UserInfo.Password != nowUserInfo.Password {
+	if settings.Get().UserInfo.Username != nowUserInfo.Username ||
+		settings.Get().UserInfo.Password != nowUserInfo.Password {
 		// 账号密码不匹配
-		c.JSON(http.StatusBadRequest, backend.ReplyCommon{Message: "Username or Password Error"})
+		c.JSON(http.StatusBadRequest, backend2.ReplyCommon{Message: "Username or Password Error"})
 		return
 	} else {
 		// 用户账号密码匹配
-		nowAccessToken := my_util.GenerateAccessToken()
+		nowAccessToken := pkg.GenerateAccessToken()
 		common.SetAccessToken(nowAccessToken)
-		c.JSON(http.StatusOK, backend.ReplyLogin{AccessToken: nowAccessToken,
-			Settings: *settings.GetSettings().GetNoPasswordSettings()})
+		c.JSON(http.StatusOK, backend2.ReplyLogin{AccessToken: nowAccessToken,
+			Settings: *settings.Get().GetNoPasswordSettings()})
 		return
 	}
 }

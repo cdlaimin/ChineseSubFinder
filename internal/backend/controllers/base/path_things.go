@@ -1,46 +1,49 @@
 package base
 
 import (
-	"github.com/allanpk716/ChineseSubFinder/internal/logic/emby_helper"
-	"github.com/allanpk716/ChineseSubFinder/internal/pkg/my_util"
-	"github.com/allanpk716/ChineseSubFinder/internal/pkg/settings"
-	"github.com/allanpk716/ChineseSubFinder/internal/types/backend"
-	"github.com/gin-gonic/gin"
 	"net/http"
+
+	"github.com/ChineseSubFinder/ChineseSubFinder/pkg"
+
+	backend2 "github.com/ChineseSubFinder/ChineseSubFinder/pkg/types/backend"
+
+	"github.com/ChineseSubFinder/ChineseSubFinder/pkg/logic/emby_helper"
+	"github.com/ChineseSubFinder/ChineseSubFinder/pkg/settings"
+	"github.com/gin-gonic/gin"
 )
 
-func (cb ControllerBase) CheckPathHandler(c *gin.Context) {
+func (cb *ControllerBase) CheckPathHandler(c *gin.Context) {
 	var err error
 	defer func() {
 		// 统一的异常处理
 		cb.ErrorProcess(c, "CheckPathHandler", err)
 	}()
 
-	reqCheckPath := backend.ReqCheckPath{}
+	reqCheckPath := backend2.ReqCheckPath{}
 	err = c.ShouldBindJSON(&reqCheckPath)
 	if err != nil {
 		return
 	}
 
-	if my_util.IsDir(reqCheckPath.Path) == true {
-		c.JSON(http.StatusOK, backend.ReplyCheckPath{
+	if pkg.IsDir(reqCheckPath.Path) == true {
+		c.JSON(http.StatusOK, backend2.ReplyCheckPath{
 			Valid: true,
 		})
 	} else {
-		c.JSON(http.StatusOK, backend.ReplyCheckPath{
+		c.JSON(http.StatusOK, backend2.ReplyCheckPath{
 			Valid: false,
 		})
 	}
 }
 
-func (cb ControllerBase) CheckEmbyPathHandler(c *gin.Context) {
+func (cb *ControllerBase) CheckEmbyPathHandler(c *gin.Context) {
 	var err error
 	defer func() {
 		// 统一的异常处理
 		cb.ErrorProcess(c, "CheckEmbyPathHandler", err)
 	}()
 
-	reqCheckPath := backend.ReqCheckEmbyPath{}
+	reqCheckPath := backend2.ReqCheckEmbyPath{}
 	err = c.ShouldBindJSON(&reqCheckPath)
 	if err != nil {
 		return
@@ -63,14 +66,13 @@ func (cb ControllerBase) CheckEmbyPathHandler(c *gin.Context) {
 		emSettings.SeriesPathsMapping[reqCheckPath.CFSMediaPath] = reqCheckPath.EmbyMediaPath
 	}
 
-	emHelper := emby_helper.NewEmbyHelper(&settings.Settings{EmbySettings: &emSettings})
-
-	outList, err := emHelper.CheckPath(reqCheckPath.PathType)
+	emHelper := emby_helper.NewEmbyHelper(cb.fileDownloader.MediaInfoDealers)
+	outList, err := emHelper.CheckPath(&emSettings, reqCheckPath.PathType, emSettings.MaxRequestVideoNumber)
 	if err != nil {
 		return
 	}
 
-	c.JSON(http.StatusOK, backend.ReplyCheckEmbyPath{
+	c.JSON(http.StatusOK, backend2.ReplyCheckEmbyPath{
 		MediaList: outList,
 	})
 }

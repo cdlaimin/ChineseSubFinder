@@ -48,19 +48,22 @@
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import CommonApi from 'src/api/CommonApi';
-import { SystemMessage } from 'src/utils/Message';
+import { SystemMessage } from 'src/utils/message';
 import AdminAccountForm from 'pages/setup/AdminAccountForm';
 import ScanFolderForm from 'pages/setup/ScanFolderForm';
 import { templateRef } from '@vueuse/core';
 import SelectMediaServerForm from 'pages/setup/SelectMediaServerForm';
-import {setupState, useSetup} from 'pages/setup/useSetup';
+import { setupState, useSetup } from 'pages/setup/use-setup';
 import EmbySetupForm from 'pages/setup/EmbySetupForm';
 import LoginBgArea from 'pages/access/login/LoginBgArea';
-import {deepCopy} from 'src/utils/CommonUtils';
-import {getInfo} from 'src/store/systemState';
-import {SUB_NAME_FORMAT_NORMAL} from 'src/constants/SettingConstants';
+import { deepCopy } from 'src/utils/common';
+import { getInfo, isRunningInDocker } from 'src/store/systemState';
+import { SUB_NAME_FORMAT_NORMAL } from 'src/constants/SettingConstants';
+import { useAppStatusLoading } from 'src/composables/use-app-status-loading';
+import { Dialog } from 'quasar';
 
 useSetup();
+const { startLoading } = useAppStatusLoading();
 
 const router = useRouter();
 const step = ref('1');
@@ -93,13 +96,30 @@ const showSubmitButton = computed(() => {
 });
 
 const submit = async () => {
+  if (isRunningInDocker.value) {
+    // 检测电影和连续剧目录是否以 /media 开头
+    const isMovieStartsWithMedia = setupState.form.movieFolder.every((item) => item.startsWith('/media'));
+    const isSeriesStartsWithMedia = setupState.form.seriesFolder.every((item) => item.startsWith('/media'));
+    if (!isMovieStartsWithMedia || !isSeriesStartsWithMedia) {
+      Dialog.create({
+        title: '请修改相关配置后继续',
+        html: true,
+        message:
+          '软件运行在Docker中，请将电影和电视剧目录修改为 <b>/media</b> 下的目录，否则可能会因为权限问题导致无法正确的加载媒体库',
+        persistent: true,
+        ok: '确定',
+      });
+      return;
+    }
+  }
+
   let isValid = true;
   if (setupState.form.mediaServer === 'emby') {
     isValid = await mediaServerSettingForm.value.$refs.form.validate();
   }
   if (!isValid) return;
   submitting.value = true;
-  const formData = deepCopy(setupState.defaultSettings)
+  const formData = deepCopy(setupState.defaultSettings);
   formData.user_info = {
     username: setupState.form.username,
     password: setupState.form.password,
@@ -117,14 +137,15 @@ const submit = async () => {
       api_key: setupState.form.emby.apiKey,
       max_request_video_number: setupState.form.emby.limitCount,
       skip_watched: setupState.form.emby.skipWatched,
+      auto_or_manual: setupState.form.emby.autoOrManual,
       movie_paths_mapping: setupState.form.emby.movieFolderMap,
       series_paths_mapping: setupState.form.emby.seriesFolderMap,
-    }
+    };
   } else {
-    formData.advanced_settings.sub_name_formatter = SUB_NAME_FORMAT_NORMAL
+    formData.advanced_settings.sub_name_formatter = SUB_NAME_FORMAT_NORMAL;
   }
   const [, err] = await CommonApi.setup({
-    settings: formData
+    settings: formData,
   });
   submitting.value = false;
   if (err !== null) {
@@ -133,6 +154,7 @@ const submit = async () => {
   }
   SystemMessage.success('初始化完成');
   await getInfo();
+  startLoading();
   router.push('/access/login');
 };
 </script>
